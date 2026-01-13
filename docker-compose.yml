@@ -1,0 +1,26 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8080:8080"
+    environment:
+      - LEDGERLY_DATA_DIR=/app/data
+      - LEDGERLY_SEED_ENABLED=true
+    volumes:
+      - ledgerly-data:/app/data
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        - VITE_API_URL=http://backend:8080
+    depends_on:
+      - backend
+    ports:
+      - "4173:4173"
+
+volumes:
+  ledgerly-data:
+    driver: local
