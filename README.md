@@ -67,7 +67,7 @@ flowchart TD
 
 ## Running the Stack
 
-### Docker Compose (recommended)
+### Docker Compose (primary)
 ```sh
 docker-compose up --build
 ```
@@ -76,21 +76,36 @@ docker-compose up --build
 - Data persisted in volume `ledgerly-data`.
 - Frontend build arg points to backend (`http://backend:8080`).
 
-### REPL (via compose)
+### REPL (via compose, recommended)
 ```sh
 docker-compose run backend java -jar /app/app.jar --spring.main.web-application-type=none --ledgerly.repl.enabled=true
 ```
-Commands: `help`, `tables`, `describe <table>`, `insert <table> {"col":"val"}`, `select <table>`, `delete <table> col=val`, `quit`.
-Domain commands: `merchant:create {json}`, `tx:create {json}`, `tx:get <id>`, `tx:list`, `tx:outcome <id> {json}`, `tx:expire`.
+Interaction (prompt is `>`):
+- Core commands:
+  - `help` — list commands
+  - `tables` — list table names
+  - `describe <table>` — show schema
+  - `insert <table> <json>` — insert a row (e.g., `insert customers {"id":4,"name":"Diana","created_at":"2024-02-01T00:00:00Z"}`)
+  - `select <table>` — select all rows (prints JSON array)
+  - `delete <table> col=val` — delete matching rows (e.g., `delete customers id=4`)
+  - `quit` — exit
+- Domain commands:
+  - `merchant:create <json>` — create merchant (e.g., `merchant:create {"id":"m3","name":"Corner Shop","status":"ACTIVE"}`)
+  - `tx:create <json>` — create transaction (e.g., `tx:create {"id":"t300","merchant_id":"m3","amount":1200,"currency":"USD"}`)
+  - `tx:get <id>` — fetch transaction
+  - `tx:list` — list transactions
+  - `tx:outcome <id> <json>` — assert outcome (e.g., `tx:outcome t300 {"status":"SUCCESS","external_reference":"proc-22"}`)
+  - `tx:expire` — expire pending past `expires_at`
+- Notes: errors (e.g., constraint violations, missing merchant) are printed as `Error: <message>`; timestamps must be ISO-8601; amounts are numeric (cents).
 
-### Local backend
+### Local backend (without Docker)
 ```sh
 cd backend
 mvn spring-boot:run
 ```
 Env: `LEDGERLY_DATA_DIR` to set data dir; `LEDGERLY_SEED_DOMAIN_ENABLED` to toggle domain seed.
 
-### Local frontend
+### Local frontend (without Docker)
 ```sh
 cd frontend
 npm install
@@ -151,9 +166,3 @@ curl -X POST http://localhost:8080/ledger/transactions/expire
 - Data persistence: ensure volume/directory is writable; WAL stored under `data/`.
 - REPL: use for quick interactive checks without HTTP.
 - If frontend can’t reach backend: confirm `VITE_API_URL` (local) or build arg (compose).
-
-## Notes for Reviewers
-- Core RDBMS is self-contained (no external DB) with WAL persistence.
-- Domain overlay demonstrates a realistic transaction lifecycle atop the custom engine.
-- UI is intentionally minimal to exercise the APIs; REPL provides low-friction inspection.
-- Docker compose gives a one-command spin-up; seeds provide instant data for both core and domain demos.
