@@ -62,12 +62,6 @@ docker compose up --build
 - View backend logs: `docker compose logs -f backend`
 - If you see `version` is obsolete warning, it is benign; you can remove the `version:` line to silence it.
 
-### REPL (one-off, via compose)
-```sh
-docker compose run --rm --service-ports --tty \
-  backend \
-  java -jar /app/app.jar --spring.main.web-application-type=none --ledgerly.repl.enabled=true
-```
 Recommended workflow:
 - Terminal A: start the stack (backend+frontend): `docker compose up --build`
 - Terminal B: run REPL separately without binding HTTP (avoids 8080 conflicts, uses same data volume):
