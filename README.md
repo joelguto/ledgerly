@@ -68,19 +68,23 @@ docker compose run --rm --service-ports --tty \
 ```
 Interaction (prompt is `>`), useful for quick integrity checks without HTTP:
 - Core commands:
-  - `help` — list commands
+  - `help` — list commands with examples
   - `tables` — list table names
   - `describe <table>` — show schema
-  - `insert <table> <json>` — insert a row (e.g., `insert customers {"id":4,"name":"Diana","created_at":"2024-02-01T00:00:00Z"}`)
-  - `select <table>` — select all rows (prints JSON array)
-  - `delete <table> col=val` — delete matching rows (e.g., `delete customers id=4`)
+  - `create <table> <schemaJson>` — define table (columns, primaryKey, optional unique)
+    - Example: `create demo {"columns":[{"name":"id","type":"INT"},{"name":"name","type":"STRING"}],"primaryKey":["id"],"unique":[["name"]]}`
+  - `insert <table> <json>` — insert row
+  - `select <table> [col1,col2] [col=val,...]` — optional projection + equality filters
+  - `update <table> col=val,... <json>` — update rows matching filters
+  - `delete <table> col=val` — delete matching rows
+  - `join <left> <right> <lCol> <rCol> [proj1,proj2]` — inner join with optional projection
   - `quit` — exit
 - Domain commands:
-  - `merchant:create <json>` — create merchant (e.g., `merchant:create {"id":"m3","name":"Corner Shop","status":"ACTIVE"}`)
-  - `tx:create <json>` — create transaction (e.g., `tx:create {"id":"t300","merchant_id":"m3","amount":1200,"currency":"USD"}`)
+  - `merchant:create <json>` — create merchant
+  - `tx:create <json>` — create transaction
   - `tx:get <id>` — fetch transaction
   - `tx:list` — list transactions
-  - `tx:outcome <id> <json>` — assert outcome (e.g., `tx:outcome t300 {"status":"SUCCESS","external_reference":"proc-22"}`)
+  - `tx:outcome <id> <json>` — assert outcome
   - `tx:expire` — expire pending past `expires_at`
 - Notes: errors (e.g., constraint violations, missing merchant) are printed as `Error: <message>`; timestamps must be ISO-8601; amounts are numeric (cents).
 
