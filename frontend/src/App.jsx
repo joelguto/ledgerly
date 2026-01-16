@@ -50,7 +50,7 @@ function App() {
         merchantId: txForm.merchantId,
         amount: Number(txForm.amount),
         currency: txForm.currency,
-        expiresAt: txForm.expiresAt || undefined,
+        expiresAt: txForm.expiresAt ? new Date(txForm.expiresAt).toISOString() : undefined,
         metadata: txForm.metadata || undefined,
       }),
     })
@@ -82,7 +82,7 @@ function App() {
       body: JSON.stringify({
         status: outcomeForm.status,
         externalReference: outcomeForm.externalReference || undefined,
-        reportedAt: outcomeForm.reportedAt || undefined,
+        reportedAt: outcomeForm.reportedAt ? new Date(outcomeForm.reportedAt).toISOString() : undefined,
         metadata: outcomeForm.metadata || undefined,
       }),
     })
@@ -179,6 +179,7 @@ function App() {
             <div className="field-row">
               <input
                 placeholder="expiresAt (ISO optional)"
+            type="datetime-local"
                 value={txForm.expiresAt}
                 onChange={(e) => setTxForm({ ...txForm, expiresAt: e.target.value })}
               />
@@ -220,6 +221,7 @@ function App() {
               />
               <input
                 placeholder="reportedAt (ISO optional)"
+            type="datetime-local"
                 value={outcomeForm.reportedAt}
                 onChange={(e) => setOutcomeForm({ ...outcomeForm, reportedAt: e.target.value })}
               />
