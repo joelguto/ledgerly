@@ -94,42 +94,47 @@ public class DomainSchemaInitializer {
         }
         String now = Instant.now().toString();
         engine.insert("merchants", Map.of(
-                "id", "m1",
-                "name", "Demo Merchant",
+                "id", "1",
+                "name", "joelguto",
                 "status", "ACTIVE",
                 "created_at", now
         ));
 
-        engine.insert("transactions", Map.of(
-                "id", "t100",
-                "merchant_id", "m1",
-                "amount", 2500L,
-                "currency", "USD",
-                "state", TransactionState.PENDING.name(),
-                "created_at", now,
-                "expires_at", Instant.now().plusSeconds(3600).toString(),
-                "metadata", "seeded"
-        ));
-        engine.insert("transactions", Map.of(
-                "id", "t101",
-                "merchant_id", "m1",
-                "amount", 5000L,
-                "currency", "USD",
-                "state", TransactionState.SUCCESS.name(),
-                "created_at", now,
-                "expires_at", Instant.now().plusSeconds(3600).toString(),
-                "metadata", "seeded"
-        ));
-        engine.insert("outcomes", Map.of(
-                "tx_id", "t101",
-                "status", TransactionState.SUCCESS.name(),
-                "external_reference", "seed-ref",
-                "reported_at", now,
-                "metadata", "seeded"
-        ));
+        // Pre-seeded successful transactions (KES)
+        insertTxWithOutcome("t201", "1", 12500L, "KES", now, "seeded: pos", "ref-201");
+        insertTxWithOutcome("t202", "1", 8800L, "KES", now, "seeded: web", "ref-202");
+        insertTxWithOutcome("t203", "1", 4500L, "KES", now, "seeded: ussd", "ref-203");
+        insertTxWithOutcome("t204", "1", 17999L, "KES", now, "seeded: mobile", "ref-204");
+        insertTxWithOutcome("t205", "1", 2999L, "KES", now, "seeded: retry", "ref-205");
     }
 
     private boolean isEmpty(String table) {
         return engine.select(table, List.of(), null).isEmpty();
+    }
+
+    private void insertTxWithOutcome(String id,
+                                     String merchantId,
+                                     long amount,
+                                     String currency,
+                                     String createdAt,
+                                     String metadata,
+                                     String externalRef) {
+        engine.insert("transactions", Map.of(
+                "id", id,
+                "merchant_id", merchantId,
+                "amount", amount,
+                "currency", currency,
+                "state", TransactionState.SUCCESS.name(),
+                "created_at", createdAt,
+                "expires_at", Instant.now().plusSeconds(3600).toString(),
+                "metadata", metadata
+        ));
+        engine.insert("outcomes", Map.of(
+                "tx_id", id,
+                "status", TransactionState.SUCCESS.name(),
+                "external_reference", externalRef,
+                "reported_at", createdAt,
+                "metadata", metadata
+        ));
     }
 }

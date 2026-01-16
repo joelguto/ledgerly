@@ -13,7 +13,6 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
 import java.util.Locale;
@@ -60,7 +59,7 @@ public class ReplRunner implements CommandLineRunner {
                 case "describe" -> {
                     ensureArgs(parts, 2);
                     engine.describe(parts[1]).ifPresentOrElse(
-                            s -> System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(s)),
+                            this::printJson,
                             () -> System.out.println("Table not found"));
                 }
                 case "insert" -> {
@@ -72,7 +71,7 @@ public class ReplRunner implements CommandLineRunner {
                 case "select" -> {
                     ensureArgs(parts, 2);
                     var rows = engine.select(parts[1], null, null);
-                    System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(rows));
+                    printJson(rows);
                 }
                 case "delete" -> {
                     ensureArgs(parts, 3);
@@ -104,11 +103,11 @@ public class ReplRunner implements CommandLineRunner {
                 case "tx:get" -> {
                     ensureArgs(parts, 2);
                     var tx = domain.getTransaction(parts[1]);
-                    System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(tx));
+                    printJson(tx);
                 }
                 case "tx:list" -> {
                     var rows = domain.listTransactions(null, null);
-                    System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(rows));
+                    printJson(rows);
                 }
                 case "tx:outcome" -> {
                     ensureArgs(parts, 3);
@@ -164,5 +163,13 @@ public class ReplRunner implements CommandLineRunner {
                 tx:expire                    Expire pending transactions
                 quit                         Exit
                 """);
+    }
+
+    private void printJson(Object value) {
+        try {
+            System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(value));
+        } catch (Exception ex) {
+            System.out.println("Error serializing value: " + ex.getMessage());
+        }
     }
 }

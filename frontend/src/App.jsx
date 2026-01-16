@@ -110,120 +110,172 @@ function App() {
   }, []);
 
   return (
-    <div style={{ fontFamily: 'sans-serif', padding: '1rem', maxWidth: 960, margin: '0 auto' }}>
-      <h2>Ledgerly Domain Demo</h2>
-      <p>Minimal UI for merchants, transactions, outcomes.</p>
-      {error && <div style={{ color: 'red' }}>Error: {error}</div>}
-
-      <section style={{ marginBottom: '1rem' }}>
-        <h4>Create Merchant</h4>
-        <input
-          placeholder="id"
-          value={merchantForm.id}
-          onChange={(e) => setMerchantForm({ ...merchantForm, id: e.target.value })}
-          style={{ marginRight: '0.5rem' }}
-        />
-        <input
-          placeholder="name"
-          value={merchantForm.name}
-          onChange={(e) => setMerchantForm({ ...merchantForm, name: e.target.value })}
-          style={{ marginRight: '0.5rem' }}
-        />
-        <input
-          placeholder="status"
-          value={merchantForm.status}
-          onChange={(e) => setMerchantForm({ ...merchantForm, status: e.target.value })}
-          style={{ marginRight: '0.5rem' }}
-        />
-        <button onClick={createMerchant}>Create</button>
-      </section>
-
-      <section style={{ marginBottom: '1rem' }}>
-        <h4>Create Transaction</h4>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <input placeholder="id" value={txForm.id} onChange={(e) => setTxForm({ ...txForm, id: e.target.value })} />
-          <input
-            placeholder="merchantId"
-            value={txForm.merchantId}
-            onChange={(e) => setTxForm({ ...txForm, merchantId: e.target.value })}
-          />
-          <input
-            placeholder="amount (cents)"
-            type="number"
-            value={txForm.amount}
-            onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
-          />
-          <input
-            placeholder="currency"
-            value={txForm.currency}
-            onChange={(e) => setTxForm({ ...txForm, currency: e.target.value })}
-          />
-          <input
-            placeholder="expiresAt (ISO optional)"
-            value={txForm.expiresAt}
-            onChange={(e) => setTxForm({ ...txForm, expiresAt: e.target.value })}
-          />
-          <input
-            placeholder="metadata"
-            value={txForm.metadata}
-            onChange={(e) => setTxForm({ ...txForm, metadata: e.target.value })}
-          />
+    <div className="app-shell">
+      <div className="hero">
+        <div>
+          <h1>Ledgerly Domain Console</h1>
+          <p>Retro controls for merchants, transactions, and outcomes.</p>
         </div>
-        <button onClick={createTransaction} style={{ marginTop: '0.5rem' }}>
-          Create Transaction
-        </button>
+        <span className="badge">Retro mode • Live</span>
+      </div>
+
+      {error && <div className="error">Error: {error}</div>}
+
+      <div className="grid">
+        <section className="card">
+          <div className="section-title">
+            <h3>Create Merchant</h3>
+            <span className="pill">POST /ledger/merchants</span>
+          </div>
+          <div className="field-stack">
+            <input
+              placeholder="id"
+              value={merchantForm.id}
+              onChange={(e) => setMerchantForm({ ...merchantForm, id: e.target.value })}
+            />
+            <input
+              placeholder="name"
+              value={merchantForm.name}
+              onChange={(e) => setMerchantForm({ ...merchantForm, name: e.target.value })}
+            />
+            <input
+              placeholder="status (e.g., ACTIVE)"
+              value={merchantForm.status}
+              onChange={(e) => setMerchantForm({ ...merchantForm, status: e.target.value })}
+            />
+            <div className="controls">
+              <button onClick={createMerchant}>Create merchant</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="section-title">
+            <h3>Create Transaction</h3>
+            <span className="pill">POST /ledger/transactions</span>
+          </div>
+          <div className="field-stack">
+            <div className="field-row">
+              <input placeholder="id" value={txForm.id} onChange={(e) => setTxForm({ ...txForm, id: e.target.value })} />
+              <input
+                placeholder="merchantId"
+                value={txForm.merchantId}
+                onChange={(e) => setTxForm({ ...txForm, merchantId: e.target.value })}
+              />
+            </div>
+            <div className="field-row">
+              <input
+                placeholder="amount (cents)"
+                type="number"
+                value={txForm.amount}
+                onChange={(e) => setTxForm({ ...txForm, amount: e.target.value })}
+              />
+              <input
+                placeholder="currency"
+                value={txForm.currency}
+                onChange={(e) => setTxForm({ ...txForm, currency: e.target.value })}
+              />
+            </div>
+            <div className="field-row">
+              <input
+                placeholder="expiresAt (ISO optional)"
+                value={txForm.expiresAt}
+                onChange={(e) => setTxForm({ ...txForm, expiresAt: e.target.value })}
+              />
+              <input
+                placeholder="metadata"
+                value={txForm.metadata}
+                onChange={(e) => setTxForm({ ...txForm, metadata: e.target.value })}
+              />
+            </div>
+            <div className="controls">
+              <button onClick={createTransaction}>Create transaction</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="section-title">
+            <h3>Assert Outcome</h3>
+            <span className="pill">POST /ledger/transactions/:id/outcome</span>
+          </div>
+          <div className="field-stack">
+            <div className="field-row">
+              <input
+                placeholder="txId"
+                value={outcomeForm.txId}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, txId: e.target.value })}
+              />
+              <input
+                placeholder="status (SUCCESS/FAILED)"
+                value={outcomeForm.status}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, status: e.target.value })}
+              />
+            </div>
+            <div className="field-row">
+              <input
+                placeholder="externalReference"
+                value={outcomeForm.externalReference}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, externalReference: e.target.value })}
+              />
+              <input
+                placeholder="reportedAt (ISO optional)"
+                value={outcomeForm.reportedAt}
+                onChange={(e) => setOutcomeForm({ ...outcomeForm, reportedAt: e.target.value })}
+              />
+            </div>
+            <input
+              placeholder="metadata"
+              value={outcomeForm.metadata}
+              onChange={(e) => setOutcomeForm({ ...outcomeForm, metadata: e.target.value })}
+            />
+            <div className="controls">
+              <button onClick={assertOutcome}>Assert outcome</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="card">
+          <div className="section-title">
+            <h3>Filters & Actions</h3>
+            <span className="pill">GET /ledger/transactions</span>
+          </div>
+          <div className="stack">
+            <div className="filters">
+              <input
+                placeholder="merchant filter"
+                value={merchantFilter}
+                onChange={(e) => setMerchantFilter(e.target.value)}
+              />
+              <input
+                placeholder="state filter (PENDING/...)"
+                value={stateFilter}
+                onChange={(e) => setStateFilter(e.target.value)}
+              />
+            </div>
+            <div className="controls">
+              <button className="secondary" onClick={loadTransactions}>
+                Refresh
+              </button>
+              <button className="danger" onClick={expirePending}>
+                Expire pending
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <div className="section-title">
+          <h3>Transactions</h3>
+          <span className="pill">Live data</span>
+        </div>
+        <div className="log-window">
+          <pre>{JSON.stringify(transactions, null, 2)}</pre>
+        </div>
       </section>
 
-      <section style={{ marginBottom: '1rem' }}>
-        <h4>Transactions</h4>
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
-          <input
-            placeholder="merchant filter"
-            value={merchantFilter}
-            onChange={(e) => setMerchantFilter(e.target.value)}
-          />
-          <input
-            placeholder="state filter (PENDING/...)"
-            value={stateFilter}
-            onChange={(e) => setStateFilter(e.target.value)}
-          />
-          <button onClick={loadTransactions}>Refresh</button>
-          <button onClick={expirePending}>Expire Pending</button>
-        </div>
-        <pre style={{ background: '#f5f5f5', padding: '0.5rem', minHeight: '150px' }}>
-          {JSON.stringify(transactions, null, 2)}
-        </pre>
-      </section>
-
-      <section>
-        <h4>Assert Outcome</h4>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <input placeholder="txId" value={outcomeForm.txId} onChange={(e) => setOutcomeForm({ ...outcomeForm, txId: e.target.value })} />
-          <input
-            placeholder="status (SUCCESS/FAILED)"
-            value={outcomeForm.status}
-            onChange={(e) => setOutcomeForm({ ...outcomeForm, status: e.target.value })}
-          />
-          <input
-            placeholder="externalReference"
-            value={outcomeForm.externalReference}
-            onChange={(e) => setOutcomeForm({ ...outcomeForm, externalReference: e.target.value })}
-          />
-          <input
-            placeholder="reportedAt (ISO optional)"
-            value={outcomeForm.reportedAt}
-            onChange={(e) => setOutcomeForm({ ...outcomeForm, reportedAt: e.target.value })}
-          />
-          <input
-            placeholder="metadata"
-            value={outcomeForm.metadata}
-            onChange={(e) => setOutcomeForm({ ...outcomeForm, metadata: e.target.value })}
-          />
-        </div>
-        <button onClick={assertOutcome} style={{ marginTop: '0.5rem' }}>
-          Assert Outcome
-        </button>
-      </section>
+      <div className="footer-note">Ledgerly mini-ledger • Retro UI</div>
     </div>
   );
 }

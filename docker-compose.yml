@@ -8,6 +8,7 @@ services:
     environment:
       - LEDGERLY_DATA_DIR=/app/data
       - LEDGERLY_SEED_ENABLED=true
+      - LEDGERLY_REPL_ENABLED=false
     volumes:
       - ledgerly-data:/app/data
 
@@ -15,7 +16,7 @@ services:
     build:
       context: ./frontend
       args:
-        - VITE_API_URL=http://backend:8080
+        - VITE_API_URL=http://localhost:8080
     depends_on:
       - backend
     ports:

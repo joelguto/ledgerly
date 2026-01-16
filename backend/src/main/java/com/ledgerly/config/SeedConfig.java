@@ -3,6 +3,7 @@ package com.ledgerly.config;
 import com.ledgerly.engine.DataType;
 import com.ledgerly.engine.LedgerEngine;
 import com.ledgerly.engine.TableSchema;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -20,8 +21,8 @@ public class SeedConfig {
     private final boolean seedEnabled;
 
     public SeedConfig(LedgerEngine engine,
-                      org.springframework.beans.factory.annotation.Value("${ledgerly.data-dir:data}") String dataDir,
-                      org.springframework.beans.factory.annotation.Value("${ledgerly.seed.enabled:true}") boolean seedEnabled) {
+                      @Value("${ledgerly.data-dir:data}") String dataDir,
+                      @Value("${ledgerly.seed.enabled:true}") boolean seedEnabled) {
         this.engine = engine;
         this.dataDir = dataDir;
         this.seedEnabled = seedEnabled;

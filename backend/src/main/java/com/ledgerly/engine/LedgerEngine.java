@@ -1,5 +1,8 @@
 package com.ledgerly.engine;
 
+import com.ledgerly.engine.persistence.Persistence;
+import com.ledgerly.engine.persistence.PersistenceEvent;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -5,3 +5,5 @@ ledgerly:
   data-dir: data
   seed:
     enabled: true
+  repl:
+    enabled: true

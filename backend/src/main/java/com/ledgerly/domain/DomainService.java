@@ -133,7 +133,7 @@ public class DomainService {
     }
 
     private void ensureAbsent(String table, String col, Object value, String message) {
-        if (selectOne(table, value, col).isPresent()) {
+        if (!selectOne(table, value, col).isEmpty()) {
             throw new IllegalArgumentException(message);
         }
     }
