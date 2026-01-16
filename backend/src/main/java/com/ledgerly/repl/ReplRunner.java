@@ -478,54 +478,6 @@ public class ReplRunner implements CommandLineRunner {
         };
     }
 
-    private void suggest(String raw) {
-        List<String> commands = List.of("help", "tables", "describe", "create", "insert", "select", "update", "delete",
-                "join", "merchant:create", "tx:create", "tx:get", "tx:list", "tx:outcome", "tx:expire", "quit");
-        String lower = raw.toLowerCase(Locale.ROOT);
-        String best = null;
-        int bestDist = Integer.MAX_VALUE;
-        for (String cmd : commands) {
-            int d = distance(lower, cmd);
-            if (d < bestDist) {
-                bestDist = d;
-                best = cmd;
-            }
-        }
-        if (bestDist <= 3) {
-            System.out.println("Unknown command '" + raw + "'. Did you mean: " + best + "?");
-        } else {
-            System.out.println("Unknown command '" + raw + "'. Type 'help' to see available commands.");
-        }
-    }
-
-    private int distance(String a, String b) {
-        int[] prev = new int[b.length() + 1];
-        int[] curr = new int[b.length() + 1];
-        for (int j = 0; j <= b.length(); j++) prev[j] = j;
-        for (int i = 1; i <= a.length(); i++) {
-            curr[0] = i;
-            for (int j = 1; j <= b.length(); j++) {
-                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
-                curr[j] = Math.min(Math.min(curr[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
-            }
-            int[] tmp = prev; prev = curr; curr = tmp;
-        }
-        return prev[b.length()];
-    }
-
-    private String normalizeCommand(String rawCmd) {
-        String c = rawCmd.toLowerCase(Locale.ROOT);
-        return switch (c) {
-            case "ls", "list" -> "tables";
-            case "desc" -> "describe";
-            case "ins" -> "insert";
-            case "sel" -> "select";
-            case "upd" -> "update";
-            case "del" -> "delete";
-            default -> c;
-        };
-    }
-
     private void printJson(Object value) {
         try {
             System.out.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(value));
