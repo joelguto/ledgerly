@@ -68,26 +68,35 @@ docker compose run --rm --service-ports --tty \
   backend \
   java -jar /app/app.jar --spring.main.web-application-type=none --ledgerly.repl.enabled=true
 ```
-Interaction (prompt is `>`), useful for quick integrity checks without HTTP:
-- Core commands:
-  - `help` — list commands with examples
-  - `tables` — list table names
-  - `describe <table>` — show schema
-  - `create <table> <schemaJson>` — define table (columns, primaryKey, optional unique)
-    - Example: `create demo {"columns":[{"name":"id","type":"INT"},{"name":"name","type":"STRING"}],"primaryKey":["id"],"unique":[["name"]]}`
-  - `insert <table> <json>` — insert row
-  - `select <table> [col1,col2] [col=val,...]` — optional projection + equality filters
-  - `update <table> col=val,... <json>` — update rows matching filters
-  - `delete <table> col=val` — delete matching rows
-  - `join <left> <right> <lCol> <rCol> [proj1,proj2]` — inner join with optional projection
-  - `quit` — exit
-- Domain commands:
-  - `merchant:create <json>` — create merchant
-  - `tx:create <json>` — create transaction
-  - `tx:get <id>` — fetch transaction
-  - `tx:list` — list transactions
-  - `tx:outcome <id> <json>` — assert outcome
-  - `tx:expire` — expire pending past `expires_at`
+Recommended workflow:
+- Terminal A: start the stack (backend+frontend): `docker compose up --build`
+- Terminal B: run REPL separately without binding HTTP (avoids 8080 conflicts, uses same data volume):
+```sh
+docker compose run --rm --tty --no-deps \
+  backend \
+  java -jar /app/app.jar --spring.main.web-application-type=none --ledgerly.repl.enabled=true
+```
+
+Interaction (prompt is `>`):
+- Commands (with descriptions and sample usage):
+  - `help` — show commands; `help create`
+  - `tables` — list tables; `tables`
+  - `describe <table>` — show schema; `describe customers`
+  - `create <table> <schemaJson>` — define table; `create demo {"columns":[{"name":"id","type":"INT"},{"name":"name","type":"STRING"}],"primaryKey":["id"],"unique":[["name"]]}`
+  - `insert <table> <json>` — insert row; `insert demo {"id":1,"name":"Alice"}`
+  - `select <table> [col1,col2] [col=val,...]` — select with projection/filters; `select demo id,name id=1`
+  - `update <table> col=val,... <json>` — update matching rows; `update demo id=1 {"name":"Alice Updated"}`
+  - `delete <table> col=val` — delete matching rows; `delete demo id=1`
+  - `join <left> <right> <lCol> <rCol> [proj1,proj2]` — inner join; `join customers orders id customer_id customers.id,orders.amount`
+  - `merchant:create <json>` — create merchant; `merchant:create {"id":"m1","name":"Shop","status":"ACTIVE"}`
+  - `tx:create <json>` — create transaction; `tx:create {"id":"t1","merchant_id":"m1","amount":1200,"currency":"USD"}` 
+  - `tx:get <id>` — fetch transaction; `tx:get t1`
+  - `tx:list` — list transactions; `tx:list`
+  - `tx:outcome <id> <json>` — assert outcome; `tx:outcome t1 {"status":"SUCCESS","external_reference":"proc-22"}`
+  - `tx:expire` — expire pending past `expires_at`; `tx:expire`
+  - `quit` — exit; `quit`
+- Aliases: `ls`/`list`→`tables`, `desc`→`describe`, `sel`→`select`, `upd`→`update`, `del`→`delete`
+- Help: `help` shows the list; `help <command>` shows a concise description and example.
 - Notes: errors (e.g., constraint violations, missing merchant) are printed as `Error: <message>`; timestamps must be ISO-8601; amounts are numeric (cents).
 
 #### WAL replay note

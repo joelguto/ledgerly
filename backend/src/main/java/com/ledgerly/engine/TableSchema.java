@@ -17,25 +17,67 @@ public class TableSchema {
     private final List<String> primaryKey;
     private final List<List<String>> uniqueConstraints;
 
+    public TableSchema(String name,
+                       List<ColumnDefinition> columns,
+                       List<String> primaryKey,
+                       List<List<String>> uniqueConstraints) {
+        Built built = build(name, toMap(columns), primaryKey, uniqueConstraints);
+        this.name = built.name();
+        this.columns = built.columns();
+        this.primaryKey = built.primaryKey();
+        this.uniqueConstraints = built.uniqueConstraints();
+    }
+
     @JsonCreator
     public TableSchema(@JsonProperty("name") String name,
-                       @JsonProperty("columns") List<ColumnDefinition> columns,
+                       @JsonProperty("columns") Map<String, ColumnDefinition> columnsMap,
                        @JsonProperty("primaryKey") List<String> primaryKey,
                        @JsonProperty("uniqueConstraints") List<List<String>> uniqueConstraints) {
-        this.name = Objects.requireNonNull(name, "name");
+        Built built = build(name, columnsMap, primaryKey, uniqueConstraints);
+        this.name = built.name();
+        this.columns = built.columns();
+        this.primaryKey = built.primaryKey();
+        this.uniqueConstraints = built.uniqueConstraints();
+    }
+
+    private static Map<String, ColumnDefinition> toMap(List<ColumnDefinition> columns) {
         Objects.requireNonNull(columns, "columns");
         if (columns.isEmpty()) {
             throw new IllegalArgumentException("Table must have at least one column");
         }
         Map<String, ColumnDefinition> map = new LinkedHashMap<>();
         for (ColumnDefinition col : columns) {
-            String key = col.getName();
+            if (map.containsKey(col.getName())) {
+                throw new IllegalArgumentException("Duplicate column: " + col.getName());
+            }
+            map.put(col.getName(), col);
+        }
+        return map;
+    }
+
+    private record Built(String name,
+                         Map<String, ColumnDefinition> columns,
+                         List<String> primaryKey,
+                         List<List<String>> uniqueConstraints) {}
+
+    private static Built build(String name,
+                               Map<String, ColumnDefinition> columnsMap,
+                               List<String> primaryKey,
+                               List<List<String>> uniqueConstraints) {
+        Objects.requireNonNull(name, "name");
+        Objects.requireNonNull(columnsMap, "columns");
+        if (columnsMap.isEmpty()) {
+            throw new IllegalArgumentException("Table must have at least one column");
+        }
+        Map<String, ColumnDefinition> map = new LinkedHashMap<>();
+        for (Map.Entry<String, ColumnDefinition> entry : columnsMap.entrySet()) {
+            String key = entry.getKey();
+            ColumnDefinition col = entry.getValue();
             if (map.containsKey(key)) {
                 throw new IllegalArgumentException("Duplicate column: " + key);
             }
             map.put(key, col);
         }
-        this.columns = Collections.unmodifiableMap(map);
 
         Objects.requireNonNull(primaryKey, "primaryKey");
         if (primaryKey.isEmpty()) {
@@ -46,7 +88,7 @@ public class TableSchema {
                 throw new IllegalArgumentException("Primary key references missing column: " + col);
             }
         }
-        this.primaryKey = List.copyOf(primaryKey);
+        List<String> pk = List.copyOf(primaryKey);
 
         Objects.requireNonNull(uniqueConstraints, "uniqueConstraints");
         for (List<String> u : uniqueConstraints) {
@@ -59,9 +101,11 @@ public class TableSchema {
                 }
             }
         }
-        this.uniqueConstraints = uniqueConstraints.stream()
+        List<List<String>> uniques = uniqueConstraints.stream()
                 .map(List::copyOf)
                 .collect(Collectors.toUnmodifiableList());
+
+        return new Built(name, Collections.unmodifiableMap(map), pk, uniques);
     }
 
     public String getName() {

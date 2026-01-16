@@ -39,7 +39,7 @@ public class ReplRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        System.out.println("Ledgerly REPL. Commands: help, tables, describe <table>, create <table> <schemaJson>, insert <table> <json>, select <table> [cols] [filters], update <table> <filters> <json>, delete <table> <col>=<val>, join <left> <right> <leftCol> <rightCol> [projections], merchant:create <json>, tx:create <json>, tx:get <id>, tx:list, tx:outcome <id> <json>, tx:expire, quit");
+        System.out.println("Ledgerly REPL. Type 'help' to see commands.");
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
             while (true) {
                 System.out.print("> ");
@@ -58,102 +58,32 @@ public class ReplRunner implements CommandLineRunner {
     private void handle(String line) {
         try {
             String[] head = splitOnce(line);
-            String cmd = head[0].toLowerCase(Locale.ROOT);
+            String rawCmd = head[0];
+            String cmd = normalizeCommand(rawCmd);
             String rest = head[1];
             switch (cmd) {
-                case "help" -> printHelp();
+                case "help" -> {
+                    if (rest == null || rest.isBlank()) {
+                        printHelp();
+                    } else {
+                        printCommandHelp(rest);
+                    }
+                }
                 case "tables" -> engine.listTables().forEach(System.out::println);
-                case "describe" -> {
-                    String table = requireToken(rest, "describe <table>");
-                    engine.describe(table).ifPresentOrElse(
-                            this::printJson,
-                            () -> System.out.println("Table not found"));
-                }
-                case "create" -> {
-                    String table = requireToken(rest, "create <table> <schemaJson>");
-                    String schemaJson = requireRemainder(afterFirst(rest), "create <table> <schemaJson>");
-                    Map<String, Object> schema = mapper.readValue(schemaJson, new TypeReference<>() {});
-                    TableSchema tableSchema = toSchema(table, schema);
-                    engine.createTable(tableSchema);
-                    System.out.println("Created table: " + table);
-                }
-                case "insert" -> {
-                    String table = requireToken(rest, "insert <table> <json>");
-                    String json = requireRemainder(afterFirst(rest), "insert <table> <json>");
-                    Map<String, Object> vals = mapper.readValue(json, new TypeReference<>() {});
-                    engine.insert(table, vals);
-                    System.out.println("OK");
-                }
-                case "select" -> {
-                    SelectArgs args = parseSelect(rest);
-                    var rows = engine.select(args.table(), args.columns(), args.predicate());
-                    printJson(rows);
-                }
-                case "update" -> {
-                    UpdateArgs args = parseUpdate(rest);
-                    int updated = engine.update(args.table(), args.predicate(), args.newValues());
-                    System.out.println("Updated: " + updated);
-                }
-                case "delete" -> {
-                    String table = requireToken(rest, "delete <table> col=val");
-                    String filter = requireRemainder(afterFirst(rest), "delete <table> col=val");
-                    RowPredicate predicate = parseFilters(filter);
-                    int deleted = engine.delete(table, predicate);
-                    System.out.println("Deleted: " + deleted);
-                }
-                case "join" -> {
-                    JoinArgs args = parseJoin(rest);
-                    var rows = engine.join(args.left(), args.right(), args.leftCol(), args.rightCol(), args.projection());
-                    printJson(rows);
-                }
-                case "merchant:create" -> {
-                    String json = requireRemainder(rest, "merchant:create <json>");
-                    Map<String, Object> m = mapper.readValue(json, new TypeReference<>() {});
-                    domain.createMerchant(
-                            (String) m.get("id"),
-                            (String) m.get("name"),
-                            (String) m.getOrDefault("status", "ACTIVE"));
-                    System.out.println("OK");
-                }
-                case "tx:create" -> {
-                    String json = requireRemainder(rest, "tx:create <json>");
-                    Map<String, Object> m = mapper.readValue(json, new TypeReference<>() {});
-                    domain.createTransaction(
-                            (String) m.get("id"),
-                            (String) m.get("merchant_id"),
-                            ((Number) m.get("amount")).longValue(),
-                            (String) m.get("currency"),
-                            m.containsKey("expires_at") ? java.time.Instant.parse((String) m.get("expires_at")) : null,
-                            (String) m.get("metadata"));
-                    System.out.println("OK");
-                }
-                case "tx:get" -> {
-                    String id = requireToken(rest, "tx:get <id>");
-                    var tx = domain.getTransaction(id);
-                    printJson(tx);
-                }
-                case "tx:list" -> {
-                    var rows = domain.listTransactions(null, null);
-                    printJson(rows);
-                }
-                case "tx:outcome" -> {
-                    String txId = requireToken(rest, "tx:outcome <id> <json>");
-                    String json = requireRemainder(afterFirst(rest), "tx:outcome <id> <json>");
-                    Map<String, Object> m = mapper.readValue(json, new TypeReference<>() {});
-                    TransactionState state = TransactionState.valueOf(((String) m.get("status")).toUpperCase());
-                    domain.assertOutcome(
-                            txId,
-                            state,
-                            (String) m.get("external_reference"),
-                            m.containsKey("reported_at") ? java.time.Instant.parse((String) m.get("reported_at")) : null,
-                            (String) m.get("metadata"));
-                    System.out.println("OK");
-                }
-                case "tx:expire" -> {
-                    int expired = domain.expirePending();
-                    System.out.println("Expired: " + expired);
-                }
-                default -> System.out.println("Unknown command");
+                case "describe" -> handleDescribe(rest);
+                case "create" -> handleCreate(rest);
+                case "insert" -> handleInsert(rest);
+                case "select" -> handleSelect(rest);
+                case "update" -> handleUpdate(rest);
+                case "delete" -> handleDelete(rest);
+                case "join" -> handleJoin(rest);
+                case "merchant:create" -> handleMerchantCreate(rest);
+                case "tx:create" -> handleTxCreate(rest);
+                case "tx:get" -> handleTxGet(rest);
+                case "tx:list" -> handleTxList();
+                case "tx:outcome" -> handleTxOutcome(rest);
+                case "tx:expire" -> handleTxExpire();
+                default -> suggest(rawCmd);
             }
         } catch (Exception ex) {
             System.out.println("Error: " + ex.getMessage());
@@ -162,68 +92,153 @@ public class ReplRunner implements CommandLineRunner {
 
     private void printHelp() {
         System.out.println("""
-                help
-                  Show this help
+                \u001B[1m=== Core ===\u001B[0m (type 'help <command>' for examples)
+                help                       Show this help
+                tables                     List tables
+                describe <table>           Show schema
+                create <table> <schema>    Create table
+                insert <table> <json>      Insert row
+                select <table> [cols] [filters]  Select rows
+                update <table> filters <json>    Update rows
+                delete <table> col=val     Delete rows
+                join <left> <right> <lCol> <rCol> [proj]  Join tables
 
-                tables
-                  List tables
+                \u001B[1m=== Domain ===\u001B[0m
+                merchant:create <json>     Create merchant
+                tx:create <json>           Create transaction
+                tx:get <id>                Get transaction
+                tx:list                    List transactions
+                tx:outcome <id> <json>     Assert outcome
+                tx:expire                  Expire pending transactions
 
-                describe <table>
-                  Show schema for a table
-                  Example: describe customers
-
-                create <table> <schemaJson>
-                  Create table with columns, primaryKey, optional unique[]
-                  Example:
-                    create demo {"columns":[{"name":"id","type":"INT"},{"name":"name","type":"STRING"}],"primaryKey":["id"],"unique":[["name"]]}
-
-                insert <table> <json>
-                  Insert a row (JSON object)
-                  Example: insert customers {"id":4,"name":"Diana","created_at":"2024-02-01T00:00:00Z"}
-
-                select <table> [cols] [col=val,...]
-                  Select rows with optional projection and equality filters
-                  Examples:
-                    select customers
-                    select customers id,name
-                    select customers id,name id=1,state=ACTIVE
-
-                update <table> col=val,... <json>
-                  Update rows matching equality filters
-                  Example: update customers id=4 {"name":"Diana Updated"}
-
-                delete <table> col=val
-                  Delete rows matching equality filter
-                  Example: delete customers id=4
-
-                join <left> <right> <lCol> <rCol> [proj1,proj2]
-                  Inner join with optional projection list
-                  Example: join customers orders id customer_id customers.id,orders.amount
-
-                merchant:create <json>
-                  Create merchant (id,name,status)
-                  Example: merchant:create {"id":"m3","name":"Corner Shop","status":"ACTIVE"}
-
-                tx:create <json>
-                  Create transaction
-                  Example: tx:create {"id":"t300","merchant_id":"m3","amount":1200,"currency":"USD","expires_at":"2026-01-15T00:00:00Z"}
-
-                tx:get <id>
-                  Get transaction
-
-                tx:list
-                  List transactions
-
-                tx:outcome <id> <json>
-                  Assert outcome
-                  Example: tx:outcome t300 {"status":"SUCCESS","external_reference":"proc-22"}
-
-                tx:expire
-                  Expire pending transactions
-
-                quit
-                  Exit
+                quit                       Exit
                 """);
+    }
+
+    private void printCommandHelp(String cmd) {
+        String c = normalizeCommand(cmd);
+        switch (c) {
+            case "help" -> System.out.println("help — show all commands. Use 'help <command>' for specifics.");
+            case "tables" -> System.out.println("tables — list tables.");
+            case "describe" -> System.out.println("describe <table> — show schema. Ex: describe customers");
+            case "create" -> System.out.println("create <table> <schemaJson> — define table.\nEx: create demo {\"columns\":[{\"name\":\"id\",\"type\":\"INT\"},{\"name\":\"name\",\"type\":\"STRING\"}],\"primaryKey\":[\"id\"],\"unique\":[[\"name\"]]}");
+            case "insert" -> System.out.println("insert <table> <json> — insert row.\nEx: insert customers {\"id\":1,\"name\":\"Alice\",\"created_at\":\"2024-01-01T00:00:00Z\"}");
+            case "select" -> System.out.println("select <table> [col1,col2] [col=val,...] — optional projection and filters.\nEx: select customers id,name id=1,state=ACTIVE");
+            case "update" -> System.out.println("update <table> col=val,... <json> — update rows matching filters.\nEx: update customers id=1 {\"name\":\"Bob\"}");
+            case "delete" -> System.out.println("delete <table> col=val — delete matching rows.\nEx: delete customers id=1");
+            case "join" -> System.out.println("join <left> <right> <lCol> <rCol> [proj] — inner join.\nEx: join customers orders id customer_id customers.id,orders.amount");
+            case "merchant:create" -> System.out.println("merchant:create <json> — create merchant.\nEx: merchant:create {\"id\":\"m1\",\"name\":\"Shop\",\"status\":\"ACTIVE\"}");
+            case "tx:create" -> System.out.println("tx:create <json> — create transaction.\nEx: tx:create {\"id\":\"t1\",\"merchant_id\":\"m1\",\"amount\":1200,\"currency\":\"USD\"}");
+            case "tx:get" -> System.out.println("tx:get <id> — fetch transaction.");
+            case "tx:list" -> System.out.println("tx:list — list transactions.");
+            case "tx:outcome" -> System.out.println("tx:outcome <id> <json> — assert outcome.\nEx: tx:outcome t1 {\"status\":\"SUCCESS\",\"external_reference\":\"proc-22\"}");
+            case "tx:expire" -> System.out.println("tx:expire — expire pending.");
+            case "quit" -> System.out.println("quit — exit.");
+            default -> System.out.println("Unknown command for help: " + cmd);
+        }
+    }
+
+    private void handleDescribe(String rest) throws Exception {
+        String table = requireToken(rest, "describe <table>");
+        engine.describe(table).ifPresentOrElse(
+                this::printJson,
+                () -> System.out.println("Table not found"));
+    }
+
+    private void handleCreate(String rest) throws Exception {
+        String table = requireToken(rest, "create <table> <schemaJson>");
+        String schemaJson = requireRemainder(afterFirst(rest), "create <table> <schemaJson>");
+        Map<String, Object> schema = mapper.readValue(schemaJson, new TypeReference<>() {});
+        TableSchema tableSchema = toSchema(table, schema);
+        engine.createTable(tableSchema);
+        System.out.println("Created table: " + table);
+    }
+
+    private void handleInsert(String rest) throws Exception {
+        String table = requireToken(rest, "insert <table> <json>");
+        String json = requireRemainder(afterFirst(rest), "insert <table> <json>");
+        Map<String, Object> vals = mapper.readValue(json, new TypeReference<>() {});
+        engine.insert(table, vals);
+        System.out.println("OK");
+    }
+
+    private void handleSelect(String rest) {
+        SelectArgs args = parseSelect(rest);
+        var rows = engine.select(args.table(), args.columns(), args.predicate());
+        printJson(rows);
+    }
+
+    private void handleUpdate(String rest) {
+        UpdateArgs args = parseUpdate(rest);
+        int updated = engine.update(args.table(), args.predicate(), args.newValues());
+        System.out.println("Updated: " + updated);
+    }
+
+    private void handleDelete(String rest) {
+        String table = requireToken(rest, "delete <table> col=val");
+        String filter = requireRemainder(afterFirst(rest), "delete <table> col=val");
+        RowPredicate predicate = parseFilters(filter);
+        int deleted = engine.delete(table, predicate);
+        System.out.println("Deleted: " + deleted);
+    }
+
+    private void handleJoin(String rest) {
+        JoinArgs args = parseJoin(rest);
+        var rows = engine.join(args.left(), args.right(), args.leftCol(), args.rightCol(), args.projection());
+        printJson(rows);
+    }
+
+    private void handleMerchantCreate(String rest) throws Exception {
+        String json = requireRemainder(rest, "merchant:create <json>");
+        Map<String, Object> m = mapper.readValue(json, new TypeReference<>() {});
+        domain.createMerchant(
+                (String) m.get("id"),
+                (String) m.get("name"),
+                (String) m.getOrDefault("status", "ACTIVE"));
+        System.out.println("OK");
+    }
+
+    private void handleTxCreate(String rest) throws Exception {
+        String json = requireRemainder(rest, "tx:create <json>");
+        Map<String, Object> m = mapper.readValue(json, new TypeReference<>() {});
+        domain.createTransaction(
+                (String) m.get("id"),
+                (String) m.get("merchant_id"),
+                ((Number) m.get("amount")).longValue(),
+                (String) m.get("currency"),
+                m.containsKey("expires_at") ? java.time.Instant.parse((String) m.get("expires_at")) : null,
+                (String) m.get("metadata"));
+        System.out.println("OK");
+    }
+
+    private void handleTxGet(String rest) {
+        String id = requireToken(rest, "tx:get <id>");
+        var tx = domain.getTransaction(id);
+        printJson(tx);
+    }
+
+    private void handleTxList() {
+        var rows = domain.listTransactions(null, null);
+        printJson(rows);
+    }
+
+    private void handleTxOutcome(String rest) throws Exception {
+        String txId = requireToken(rest, "tx:outcome <id> <json>");
+        String json = requireRemainder(afterFirst(rest), "tx:outcome <id> <json>");
+        Map<String, Object> m = mapper.readValue(json, new TypeReference<>() {});
+        TransactionState state = TransactionState.valueOf(((String) m.get("status")).toUpperCase());
+        domain.assertOutcome(
+                txId,
+                state,
+                (String) m.get("external_reference"),
+                m.containsKey("reported_at") ? java.time.Instant.parse((String) m.get("reported_at")) : null,
+                (String) m.get("metadata"));
+        System.out.println("OK");
+    }
+
+    private void handleTxExpire() {
+        int expired = domain.expirePending();
+        System.out.println("Expired: " + expired);
     }
 
     private TableSchema toSchema(String name, Map<String, Object> schema) {
@@ -414,6 +429,102 @@ public class ReplRunner implements CommandLineRunner {
     private record UpdateArgs(String table, RowPredicate predicate, Map<String, Object> newValues) {}
 
     private record JoinArgs(String left, String right, String leftCol, String rightCol, List<String> projection) {}
+
+    private void suggest(String raw) {
+        List<String> commands = List.of("help", "tables", "describe", "create", "insert", "select", "update", "delete",
+                "join", "merchant:create", "tx:create", "tx:get", "tx:list", "tx:outcome", "tx:expire", "quit");
+        String lower = raw.toLowerCase(Locale.ROOT);
+        String best = null;
+        int bestDist = Integer.MAX_VALUE;
+        for (String cmd : commands) {
+            int d = distance(lower, cmd);
+            if (d < bestDist) {
+                bestDist = d;
+                best = cmd;
+            }
+        }
+        if (bestDist <= 3) {
+            System.out.println("Unknown command '" + raw + "'. Did you mean: " + best + "?");
+        } else {
+            System.out.println("Unknown command '" + raw + "'. Type 'help' to see available commands.");
+        }
+    }
+
+    private int distance(String a, String b) {
+        int[] prev = new int[b.length() + 1];
+        int[] curr = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) prev[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            curr[0] = i;
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                curr[j] = Math.min(Math.min(curr[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+            }
+            int[] tmp = prev; prev = curr; curr = tmp;
+        }
+        return prev[b.length()];
+    }
+
+    private String normalizeCommand(String rawCmd) {
+        String c = rawCmd.toLowerCase(Locale.ROOT);
+        return switch (c) {
+            case "ls", "list" -> "tables";
+            case "desc" -> "describe";
+            case "ins" -> "insert";
+            case "sel" -> "select";
+            case "upd" -> "update";
+            case "del" -> "delete";
+            default -> c;
+        };
+    }
+
+    private void suggest(String raw) {
+        List<String> commands = List.of("help", "tables", "describe", "create", "insert", "select", "update", "delete",
+                "join", "merchant:create", "tx:create", "tx:get", "tx:list", "tx:outcome", "tx:expire", "quit");
+        String lower = raw.toLowerCase(Locale.ROOT);
+        String best = null;
+        int bestDist = Integer.MAX_VALUE;
+        for (String cmd : commands) {
+            int d = distance(lower, cmd);
+            if (d < bestDist) {
+                bestDist = d;
+                best = cmd;
+            }
+        }
+        if (bestDist <= 3) {
+            System.out.println("Unknown command '" + raw + "'. Did you mean: " + best + "?");
+        } else {
+            System.out.println("Unknown command '" + raw + "'. Type 'help' to see available commands.");
+        }
+    }
+
+    private int distance(String a, String b) {
+        int[] prev = new int[b.length() + 1];
+        int[] curr = new int[b.length() + 1];
+        for (int j = 0; j <= b.length(); j++) prev[j] = j;
+        for (int i = 1; i <= a.length(); i++) {
+            curr[0] = i;
+            for (int j = 1; j <= b.length(); j++) {
+                int cost = a.charAt(i - 1) == b.charAt(j - 1) ? 0 : 1;
+                curr[j] = Math.min(Math.min(curr[j - 1] + 1, prev[j] + 1), prev[j - 1] + cost);
+            }
+            int[] tmp = prev; prev = curr; curr = tmp;
+        }
+        return prev[b.length()];
+    }
+
+    private String normalizeCommand(String rawCmd) {
+        String c = rawCmd.toLowerCase(Locale.ROOT);
+        return switch (c) {
+            case "ls", "list" -> "tables";
+            case "desc" -> "describe";
+            case "ins" -> "insert";
+            case "sel" -> "select";
+            case "upd" -> "update";
+            case "del" -> "delete";
+            default -> c;
+        };
+    }
 
     private void printJson(Object value) {
         try {
