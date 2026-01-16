@@ -2,32 +2,15 @@
 
 Comprehensive mini-RDBMS (Java/Spring Boot) with file-based persistence (WAL), REST API, REPL, and a minimal React UI. Includes a Ledgerly-flavored domain overlay (merchants, transactions, outcomes, expiration) to showcase a transaction lifecycle on top of the custom engine.
 
-## Table of Contents
-- Overview
-- Features
-- Architecture (with diagrams)
-- Data Model & State Machine
-- Persistence & Seeding
-- Running the Stack
-  - Docker Compose
-  - Local backend
-  - Local frontend
-  - REPL
-- API Reference
-  - Core RDBMS APIs
-  - Ledgerly Domain APIs
-- Testing & Troubleshooting
-- Notes for Reviewers
-
 ## Overview
-This project demonstrates a self-contained mini-RDBMS built from first principles (no external DB), plus a Ledgerly-inspired domain: onboarding merchants, recording transactions, asserting outcomes, and handling expirations. It targets the challenge requirements while showing realistic transaction lifecycle flows.
+This project demonstrates a self-contained mini-RDBMS built from first principles (no external DB), plus a Ledgerly-inspired domain: onboarding merchants, recording transactions, asserting outcomes, and handling expirations. It illustrates durability via a JSONL write-ahead log, schema-backed tables, domain validation, idempotent flows, and a lightweight UI/REPL surface to exercise the system end-to-end.
 
 ## Features
-- Core engine: schema management, PK/unique constraints, types (INT, STRING, TIMESTAMP), CRUD, filtered selects, simple inner join, in-memory indexes.
-- Persistence: append-only WAL (JSONL), reload on startup; configurable data directory.
-- Domain overlay: merchants, transactions (PENDING/SUCCESS/FAILED/EXPIRED), outcomes, manual expiration sweep; idempotent transaction creation, validated outcome assertion.
-- Interfaces: REST API, REPL, and a minimal React UI.
-- Dockerized: one-command bring-up with persisted volume; frontend auto-wired to backend.
+- Core engine: schema-backed tables with PK/unique enforcement, typed columns (INT, STRING, TIMESTAMP), CRUD, filtered selects, simple inner join, in-memory indexes for quick lookups, and predicate-based updates/deletes.
+- Persistence: append-only JSONL WAL with replay on startup; configurable data directory for easy relocation or volume mounting.
+- Domain overlay: merchants, transactions (PENDING/SUCCESS/FAILED/EXPIRED), outcomes, and an expiration sweep; transaction creation validates merchant existence, outcome assertion enforces state transitions and idempotency.
+- Interfaces: REST API for automation, REPL for quick probes, and a styled React UI to inspect flows visually (filters, seeding, outcomes).
+- Dockerized: one-command bring-up with persisted volume; frontend build preconfigured to talk to the backend.
 
 ## Architecture
 ### System (high level)
@@ -69,18 +52,21 @@ flowchart TD
 
 ### Docker Compose (primary)
 ```sh
-docker-compose up --build
+docker compose up --build
 ```
 - Backend: http://localhost:8080
 - Frontend: http://localhost:4173
 - Data persisted in volume `ledgerly-data`.
-- Frontend build arg points to backend (`http://backend:8080`).
+- REPL is disabled by default (`LEDGERLY_REPL_ENABLED=false`).
+- Frontend build arg points to backend `http://localhost:8080`.
 
-### REPL (via compose, recommended)
+### REPL (one-off, via compose)
 ```sh
-docker-compose run backend java -jar /app/app.jar --spring.main.web-application-type=none --ledgerly.repl.enabled=true
+docker compose run --rm --service-ports --tty \
+  backend \
+  java -jar /app/app.jar --spring.main.web-application-type=none --ledgerly.repl.enabled=true
 ```
-Interaction (prompt is `>`):
+Interaction (prompt is `>`), useful for quick integrity checks without HTTP:
 - Core commands:
   - `help` — list commands
   - `tables` — list table names
@@ -103,7 +89,7 @@ Interaction (prompt is `>`):
 cd backend
 mvn spring-boot:run
 ```
-Env: `LEDGERLY_DATA_DIR` to set data dir; `LEDGERLY_SEED_DOMAIN_ENABLED` to toggle domain seed.
+Env: `LEDGERLY_DATA_DIR` to set data dir; `LEDGERLY_SEED_DOMAIN_ENABLED` to toggle domain seed. The WAL under `data/ledgerly-wal.jsonl` is replayed on boot, so local runs pick up prior state unless cleared.
 
 ### Local frontend (without Docker)
 ```sh
@@ -111,7 +97,7 @@ cd frontend
 npm install
 npm run dev -- --host
 ```
-Env: `VITE_API_URL` (defaults to http://localhost:8080).
+Env: `VITE_API_URL` (defaults to http://localhost:8080). The UI includes filters for state/merchant and pretty JSON output for quick inspection of ledger state.
 
 ## API Reference
 
@@ -161,8 +147,8 @@ curl -X POST http://localhost:8080/ledger/transactions/expire
 ```
 
 ## Testing & Troubleshooting
-- Smoke test (core): list tables, select from seeded customers/orders, insert and re-select, run join.
-- Smoke test (domain): create merchant, create transaction, list/filter, assert outcome, expire pending.
-- Data persistence: ensure volume/directory is writable; WAL stored under `data/`.
-- REPL: use for quick interactive checks without HTTP.
-- If frontend can’t reach backend: confirm `VITE_API_URL` (local) or build arg (compose).
+- Smoke test (core): list tables, select from seeded customers/orders, insert and re-select, run join; persistence can be confirmed by restarting and replaying WAL.
+- Smoke test (domain): create merchant, create transaction, list/filter, assert outcome, expire pending; observe state transitions (PENDING→SUCCESS/FAILED/EXPIRED) and idempotent outcome handling.
+- Data persistence: ensure volume/directory is writable; WAL stored under `data/`. Clearing WAL resets state; retaining WAL demonstrates durability.
+- REPL: use for quick interactive checks without HTTP; helpful for schema describes and direct inserts when debugging filters/predicates.
+- If frontend can’t reach backend: confirm `VITE_API_URL` (local) or build arg (compose); ensure backend is on http://localhost:8080.
