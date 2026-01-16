@@ -59,6 +59,8 @@ docker compose up --build
 - Data persisted in volume `ledgerly-data`.
 - REPL is disabled by default (`LEDGERLY_REPL_ENABLED=false`).
 - Frontend build arg points to backend `http://localhost:8080`.
+- View backend logs: `docker compose logs -f backend`
+- If you see `version` is obsolete warning, it is benign; you can remove the `version:` line to silence it.
 
 ### REPL (one-off, via compose)
 ```sh
@@ -87,6 +89,9 @@ Interaction (prompt is `>`), useful for quick integrity checks without HTTP:
   - `tx:outcome <id> <json>` — assert outcome
   - `tx:expire` — expire pending past `expires_at`
 - Notes: errors (e.g., constraint violations, missing merchant) are printed as `Error: <message>`; timestamps must be ISO-8601; amounts are numeric (cents).
+
+#### WAL replay note
+- The engine replays `data/ledgerly-wal.jsonl` on startup. If a WAL becomes corrupted or schema changes make old WAL incompatible, you can reset state by removing the WAL (e.g., `docker compose down -v` to drop the volume) or rebuild with a clean data dir. Otherwise, keep WAL to preserve state.
 
 ### Local backend (without Docker)
 ```sh

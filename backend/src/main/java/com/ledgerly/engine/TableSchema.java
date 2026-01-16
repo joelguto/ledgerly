@@ -1,5 +1,8 @@
 package com.ledgerly.engine;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -14,10 +17,11 @@ public class TableSchema {
     private final List<String> primaryKey;
     private final List<List<String>> uniqueConstraints;
 
-    public TableSchema(String name,
-                       List<ColumnDefinition> columns,
-                       List<String> primaryKey,
-                       List<List<String>> uniqueConstraints) {
+    @JsonCreator
+    public TableSchema(@JsonProperty("name") String name,
+                       @JsonProperty("columns") List<ColumnDefinition> columns,
+                       @JsonProperty("primaryKey") List<String> primaryKey,
+                       @JsonProperty("uniqueConstraints") List<List<String>> uniqueConstraints) {
         this.name = Objects.requireNonNull(name, "name");
         Objects.requireNonNull(columns, "columns");
         if (columns.isEmpty()) {

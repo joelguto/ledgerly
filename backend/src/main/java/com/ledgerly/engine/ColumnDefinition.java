@@ -1,5 +1,8 @@
 package com.ledgerly.engine;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.Objects;
 
 public class ColumnDefinition {
@@ -7,7 +10,10 @@ public class ColumnDefinition {
     private final DataType type;
     private final boolean nullable;
 
-    public ColumnDefinition(String name, DataType type, boolean nullable) {
+    @JsonCreator
+    public ColumnDefinition(@JsonProperty("name") String name,
+                            @JsonProperty("type") DataType type,
+                            @JsonProperty("nullable") boolean nullable) {
         this.name = Objects.requireNonNull(name, "name");
         this.type = Objects.requireNonNull(type, "type");
         this.nullable = nullable;
